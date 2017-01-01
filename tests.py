@@ -39,7 +39,7 @@ class TestProgram(unittest.TestCase):
         self.assertEqual(writtenLines.count("Die Verurteilten"),1)
         self.assertEqual(writtenLines.count("Gladiator"),0)
 
-    def test_doesNotAddFilmTwice(self):
+    def test_doesNotAddMovieTwice(self):
         for x in range(0, 2):
             self.__runGoodMovies(["--list=top250",
                                   "--count=10",
@@ -50,6 +50,19 @@ class TestProgram(unittest.TestCase):
 
         self.assertEqual(len(writtenLines),10)
         self.assertEqual(writtenLines.count("The Shawshank Redemption"),1)
+
+    def test_canSpecifyLogFile(self):
+        for x in range(0, 2):
+            self.__runGoodMovies(["--list=top250",
+                                  "--count=10",
+                                  "--language=en-US",
+                                  "--outputfile=testdata/top10english.txt",
+                                  "--logfile=testdata/goodmovies.log"])
+
+        writtenLog = self.__readTestFile("testdata/goodmovies.log")
+
+        self.assertIn("GoodMovies started",writtenLog[0])
+        self.assertIn("GoodMovies finished",writtenLog[-1])
 
     # the path the tests will create their data files in
     __testDataDirectory = 'testdata/'
