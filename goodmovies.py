@@ -29,7 +29,38 @@ class IMDBScraper:
 
         return movies
 
+    def loadTopMoviesByGenre(self,imdbGenreKey,count):
+        movies = []
+
+        currentPage = 1
+
+        while True:
+            IMDBGenreURL = "http://www.imdb.com/search/title?genres=" + imdbGenreKey + "&sort=user_rating,desc&title_type=feature&num_votes=25000,&view=simple&page=" + str(currentPage)
+
+            IMDBResponseAsString = self.__fetchIMDBSiteContent(IMDBGenreURL)
+
+            strainer = SoupStrainer('span', attrs={'class': 'lister-item-header'})
+            soup = BeautifulSoup(IMDBResponseAsString, 'lxml', parse_only=strainer)
+            movieTitleLines = soup.findAll('span', {'class': 'lister-item-header'})
+
+            if len(movieTitleLines) == 0:
+                self.__logger.error('Did not get results parsing result for URL "%s", aborting',IMDBGenreURL)
+                break
+
+            for eachMovieLine in movieTitleLines:
+                movieLink = eachMovieLine.find('a')
+                movies.append(movieLink.text)
+
+            if len(movies) >= count:
+                break
+
+            currentPage += 1
+
+        return movies
+
     def __fetchIMDBSiteContent(self,url):
+        # upon sending a request from IMDB with header 'Accept-Language'
+        # IMDB will return the site and the move titles in this language
         IMDBRequest = urllib2.Request(url, "",
             { "Accept-Language" : self.__language })
 
@@ -55,7 +86,10 @@ class GoodMoviesRunner:
         moviesAlreadyInFile = self.__readMoviesAlreadyInFile(commandLineArguments)
         moviesToInsertIntoFile = self.__findMoviesToInsertIntoFile(moviesAlreadyInFile,moviesThatShouldBeInFile)
 
-        self.__insertMoviesIntoFile(commandLineArguments,moviesToInsertIntoFile)
+        if commandLineArguments.outputfile != '':
+            self.__insertMoviesIntoFile(commandLineArguments,moviesToInsertIntoFile)
+        else:
+            self.__outputMoviesToSTDOUT(moviesToInsertIntoFile)
 
         self.__logger.info('GoodMovies finished')
 
@@ -64,6 +98,10 @@ class GoodMoviesRunner:
                             filemode='a',
                             level=0,
                             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    def __outputMoviesToSTDOUT(self,moviesToPrint):
+        for eachMovieToPrint in moviesToPrint:
+            print(eachMovieToPrint)
 
     def __insertMoviesIntoFile(self,
                                commandLineArguments,
@@ -97,12 +135,21 @@ class GoodMoviesRunner:
 
     def __readMoviesThatShouldBeInFile(self,
                                        commandLineArguments):
-
         self.__logger.info('Fetching movies from list %s',commandLineArguments.list)
 
         theIMDBScraper = IMDBScraper()
         theIMDBScraper.setLanguage(commandLineArguments.language)
-        moviesOnIMDBSite = theIMDBScraper.loadTop250()
+
+        if commandLineArguments.list == 'imdb_top250':
+            moviesOnIMDBSite = theIMDBScraper.loadTop250()
+        elif commandLineArguments.list.startswith('imdb_'):
+            moviesOnIMDBSite = theIMDBScraper.loadTopMoviesByGenre(
+                imdbGenreKey = commandLineArguments.list[5:],
+                count = commandLineArguments.count)
+        else:
+            self.__logger.info('List "%s" is unknown, no movies fetched',commandLineArguments.list)
+            moviesOnIMDBSite = []
+
         moviesThatShouldBeInFile = moviesOnIMDBSite[:commandLineArguments.count]
 
         self.__logger.info('Fetched %i movies, that should be in file',len(moviesThatShouldBeInFile))
@@ -111,21 +158,24 @@ class GoodMoviesRunner:
 
     def __readMoviesAlreadyInFile(self,
                                   commandLineArguments):
-
         self.__logger.info('Reading file %s',commandLineArguments.outputfile)
 
-        try:
-            fileToUpdate = io.open(
-                commandLineArguments.outputfile,'r',encoding="utf8")
+        if commandLineArguments.outputfile != '':
+            try:
+                fileToUpdate = io.open(
+                    commandLineArguments.outputfile,'r',encoding="utf8")
 
-            contentInFileToUpdate = fileToUpdate.read()
-            moviesAlreadyInFile = contentInFileToUpdate.rstrip().split("\n")
-            fileToUpdate.close()
-        except Exception as e:
-            self.__logger.warning('Could not read file %s, maybe file does not exist yet',commandLineArguments.outputfile)
+                contentInFileToUpdate = fileToUpdate.read()
+                moviesAlreadyInFile = contentInFileToUpdate.rstrip().split("\n")
+                fileToUpdate.close()
+            except Exception as e:
+                self.__logger.warning('Could not read file %s, maybe file does not exist yet',commandLineArguments.outputfile)
+                moviesAlreadyInFile = []
+
+            self.__logger.info('File %s already contains %i movies',commandLineArguments.outputfile,len(moviesAlreadyInFile))
+        else:
+            self.__logger.info('No outputfile specified - writing movies to STDOUT')
             moviesAlreadyInFile = []
-
-        self.__logger.info('File %s already contains %i movies',commandLineArguments.outputfile,len(moviesAlreadyInFile))
 
         return moviesAlreadyInFile
 
@@ -135,7 +185,30 @@ class GoodMoviesRunner:
 
         parser.add_argument(
             '-li','--list',
-            help='the list to fetch, now only top250 is supported')
+            help='the list to fetch, "imdb_top250" to fetch from the IMDB top 250 list, "imdb_<genre>" to fetch from the IMDB list with a special genre',
+            choices=["imdb_top250",
+                     "imdb_adventure",
+                     "imdb_action",
+                     "imdb_animation",
+                     "imdb_biography",
+                     "imdb_comedy",
+                     "imdb_crime",
+                     "imdb_drama",
+                     "imdb_family",
+                     "imdb_fantasy",
+                     "imdb_film_noir",
+                     "imdb_history",
+                     "imdb_horror",
+                     "imdb_music",
+                     "imdb_musical",
+                     "imdb_mystery",
+                     "imdb_romance",
+                     "imdb_sci_fi",
+                     "imdb_sport",
+                     "imdb_thriller",
+                     "imdb_war",
+                     "imdb_western" ],
+            default="imdb_top250")
 
         parser.add_argument(
             '-la','--language',
@@ -144,7 +217,8 @@ class GoodMoviesRunner:
 
         parser.add_argument(
             '-of','--outputfile',
-            help='specify the file the result should be written to')
+            help='specify the file the result should be written to',
+            default='')
 
         parser.add_argument(
             '-lo','--logfile',
