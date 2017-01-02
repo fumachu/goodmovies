@@ -1,3 +1,5 @@
+#!/usr/bin/python
+'''Test cases for goodmovies.py'''
 import unittest
 import subprocess
 import os
@@ -10,6 +12,8 @@ class TestProgram(unittest.TestCase):
         self.__clearTestDataDirectory()
 
     def test_savesTop250InEnglischToFile(self):
+        """tests, whether we can read movies from the imdb top 250 list"""
+
         self.__runGoodMovies(["--list=imdb_top250",
                               "--language=en-US",
                               "--outputfile=testdata/top250englisch.txt"])
@@ -20,6 +24,8 @@ class TestProgram(unittest.TestCase):
         self.assertEqual(writtenLines.count("The Shawshank Redemption"),1)
 
     def test_savesTop100SciFiInEnglischToFile(self):
+        """tests, whether we can read movies from the imdb sci_fi list"""
+
         self.__runGoodMovies(["--list=imdb_sci_fi",
                               "--language=en-US",
                               "--outputfile=testdata/top100scifienglisch.txt"])
@@ -30,6 +36,9 @@ class TestProgram(unittest.TestCase):
         self.assertEqual(writtenLines.count("Blade Runner"),1)
 
     def test_savesTop150ActionInGermanToFile(self):
+        """tests, whether we can read movies from the imdb action movie list
+           in german"""
+
         self.__runGoodMovies(["--list=imdb_action",
                               "--language=de-DE",
                               "--count=150",
@@ -40,6 +49,9 @@ class TestProgram(unittest.TestCase):
         self.assertEqual(writtenLines.count("Stirb langsam"),1)
 
     def test_savesTop250InGermanToFile(self):
+        """tests, whether we can read movies from the imdb top 250 list
+           in german"""
+
         self.__runGoodMovies(["--list=imdb_top250",
                               "--language=de-DE",
                               "--outputfile=testdata/top250german.txt"])
@@ -49,6 +61,9 @@ class TestProgram(unittest.TestCase):
         self.assertEqual(writtenLines.count("Die Verurteilten"),1)
 
     def test_canSpecifyCount(self):
+        """tests, whether we can read movies from the imdb top 250 list
+           specifying a count"""
+
         self.__runGoodMovies(["--list=imdb_top250",
                               "--count=10",
                               "--language=de-DE",
@@ -60,6 +75,8 @@ class TestProgram(unittest.TestCase):
         self.assertEqual(writtenLines.count("Gladiator"),0)
 
     def test_doesNotAddMovieTwice(self):
+        """tests, that a movie is not added twice to the output file"""
+
         for x in range(0, 2):
             self.__runGoodMovies(["--list=imdb_top250",
                                   "--count=10",
@@ -72,6 +89,9 @@ class TestProgram(unittest.TestCase):
         self.assertEqual(writtenLines.count("The Shawshank Redemption"),1)
 
     def test_canSpecifyLogFile(self):
+        """tests, that logging messages are appended to the log file given
+           in the command line argument --logfile"""
+
         for x in range(0, 2):
             self.__runGoodMovies(["--list=imdb_top250",
                                   "--count=10",
@@ -85,6 +105,9 @@ class TestProgram(unittest.TestCase):
         self.assertIn("GoodMovies finished",writtenLog[-1])
 
     def test_callingWithoutOutputFileWritesToSTDOUT(self):
+        """tests, that output is written to STDOUT, if parameter
+           --outputfile is not given"""
+
         consoleOutput = self.__runGoodMovies(["--list=imdb_top250",
                                               "--count=10",
                                               "--language=en-US"])
@@ -92,21 +115,15 @@ class TestProgram(unittest.TestCase):
         self.assertEqual(len(consoleOutput),10)
         self.assertEqual(consoleOutput.count("The Shawshank Redemption"),1)
 
-    def test_doesNotAddAlreadyExistingMovies(self):
-        self.__createFakeMovieFile("testdata/The Shawshank Redemption.mp4")
-        self.__createFakeMovieFile("testdata/Blade Runner.mp4")
-
     # the path the tests will create their data files in
     __testDataDirectory = 'testdata/'
 
-    def __createFakeMovieFile(self,filename):
-        fakeMovieFile = io.open(filename, 'a')
-        fakeMovieFile.write(u' ')
-        fakeMovieFile.close()
-
     def __clearTestDataDirectory(self):
+        """clears the files in test data directory, thereby only leaving
+           the .gitignore file"""
+
         for eachFileInTestDataDirectory in os.listdir(self.__testDataDirectory):
-            if eachFileInTestDataDirectory == '.gitignore'
+            if eachFileInTestDataDirectory == '.gitignore':
                 # we better keep the .gitignore file in the testdata directory
                 continue
 
@@ -117,7 +134,9 @@ class TestProgram(unittest.TestCase):
             except Exception as e:
                 print(e)
 
-    def __runGoodMovies(self,options):
+    def __runGoodMovies(self, options):
+        """executes the goodmovies.py script and returns the console output"""
+
         callParameters = ["python","goodmovies.py"]
         callParameters.extend(options)
 
@@ -125,7 +144,10 @@ class TestProgram(unittest.TestCase):
 
         return outputOfGoodMovies.rstrip().split('\n')
 
-    def __readTestFile(self,fileName):
+    def __readTestFile(self, fileName):
+        """reads the contents of the given file and returns
+           the lines as list"""
+
         writtenFile = io.open(fileName,"r",encoding="utf8")
         writtenFileContent = writtenFile.read()
         writtenLines = writtenFileContent.rstrip().split("\n")

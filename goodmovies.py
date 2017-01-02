@@ -1,3 +1,6 @@
+#!/usr/bin/python
+"""Fetches lists of movies from internetes sites and writes them to a file
+   or STDOUT"""
 import argparse
 import io
 import urllib2
@@ -5,16 +8,22 @@ import logging
 from bs4 import BeautifulSoup, SoupStrainer
 
 class IMDBScraper:
+    """Reads movie lists from imdb.com"""
+
+    """the language to read movie lists in"""
     __language = "en-US"
+
     __logger = None
 
     def __init__(self):
         self.__logger = logging.getLogger('goodmovies')
 
-    def setLanguage(self,language):
+    def setLanguage(self, language):
+        """set the language for reading imdb movie lists"""
         self.__language = language
 
     def loadTop250(self):
+        """reads the imdb top 250 move list and returns a list"""
         IMDBResponseAsString = self.__fetchIMDBSiteContent("http://www.imdb.com/chart/top")
 
         strainer = SoupStrainer('td', attrs={'class': 'titleColumn'})
@@ -29,7 +38,8 @@ class IMDBScraper:
 
         return movies
 
-    def loadTopMoviesByGenre(self,imdbGenreKey,count):
+    def loadTopMoviesByGenre(self, imdbGenreKey, count):
+        """reads the imdb top rated movies by genre and returns a list"""
         movies = []
 
         currentPage = 1
@@ -44,7 +54,7 @@ class IMDBScraper:
             movieTitleLines = soup.findAll('span', {'class': 'lister-item-header'})
 
             if len(movieTitleLines) == 0:
-                self.__logger.error('Did not get results parsing result for URL "%s", aborting',IMDBGenreURL)
+                self.__logger.error('Did not get results parsing result for URL "%s", aborting', IMDBGenreURL)
                 break
 
             for eachMovieLine in movieTitleLines:
@@ -58,10 +68,12 @@ class IMDBScraper:
 
         return movies
 
-    def __fetchIMDBSiteContent(self,url):
-        # upon sending a request from IMDB with header 'Accept-Language'
-        # IMDB will return the site and the move titles in this language
+    def __fetchIMDBSiteContent(self, url):
+        """reads the content of an IMDB site and returns the HTML as string"""
+
         IMDBRequest = urllib2.Request(url, "",
+            # upon sending a request from IMDB with header 'Accept-Language'
+            # IMDB will return the site and the move titles in this language
             { "Accept-Language" : self.__language })
 
         IMDBResponse = urllib2.urlopen(IMDBRequest)
@@ -70,12 +82,21 @@ class IMDBScraper:
         return IMDBResponseAsString
 
 class GoodMoviesRunner:
+    """the main class of the script"""
+
     __logger = None
 
     def __init__(self):
         self.__logger = logging.getLogger('goodmovies')
 
     def execute(self):
+        """executes the scripts
+           * parses the command lines arguments
+           * reads the movies from the internet accordingly
+           * reads the movies already contained in the output file, if any
+           * determines the missing movies and appends them to the ouptut file
+        """
+
         commandLineArguments = self.__parseCommandLineArguments()
 
         self.__initLogging(commandLineArguments)
@@ -93,19 +114,26 @@ class GoodMoviesRunner:
 
         self.__logger.info('GoodMovies finished')
 
-    def __initLogging(self,commandLineArguments):
+    def __initLogging(self, commandLineArguments):
+        """configures the logging"""
+
         logging.basicConfig(filename=commandLineArguments.logfile,
                             filemode='a',
                             level=0,
                             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    def __outputMoviesToSTDOUT(self,moviesToPrint):
+    def __outputMoviesToSTDOUT(self, moviesToPrint):
+        """writes the given movies to STDOUT"""
+
         for eachMovieToPrint in moviesToPrint:
             print(eachMovieToPrint)
 
     def __insertMoviesIntoFile(self,
                                commandLineArguments,
                                moviesToInsertIntoFile):
+        """appends the given movies to the output file specified in the
+           command line arguments"""
+
         fileToWriteTo = io.open(commandLineArguments.outputfile,'a',encoding="utf8")
 
         for eachMovieToInsert in moviesToInsertIntoFile:
@@ -121,6 +149,9 @@ class GoodMoviesRunner:
     def __findMoviesToInsertIntoFile(self,
                                      moviesAlreadyInFile,
                                      moviesThatShouldBeInFile):
+        """finds the movies that are not already contained in the list
+           and returns them as list"""
+
         moviesToInsertIntoFile = []
 
         for eachMovieThatShouldBeInFile in moviesThatShouldBeInFile:
@@ -135,6 +166,9 @@ class GoodMoviesRunner:
 
     def __readMoviesThatShouldBeInFile(self,
                                        commandLineArguments):
+        """fetches the movies from the internet site (e.g. imdb.com) according
+           to the given command line arguments"""
+
         self.__logger.info('Fetching movies from list %s',commandLineArguments.list)
 
         theIMDBScraper = IMDBScraper()
@@ -158,6 +192,9 @@ class GoodMoviesRunner:
 
     def __readMoviesAlreadyInFile(self,
                                   commandLineArguments):
+        """Reads the movies already contained in the output file specified
+           in the command line arguments"""
+
         self.__logger.info('Reading file %s',commandLineArguments.outputfile)
 
         if commandLineArguments.outputfile != '':
@@ -180,6 +217,8 @@ class GoodMoviesRunner:
         return moviesAlreadyInFile
 
     def __parseCommandLineArguments(self):
+        """parses the command line arguments and ends the script on error"""
+
         parser = argparse.ArgumentParser(
             description='Fetch film lists from IMDB and write them to text files.')
 
@@ -212,7 +251,7 @@ class GoodMoviesRunner:
 
         parser.add_argument(
             '-la','--language',
-            help='specify the language to retrieve the films in',
+            help='specify the language to retrieve the films in (e.g. en-US, de-DE, fr-FR)',
             default="en-US")
 
         parser.add_argument(
