@@ -104,7 +104,7 @@ class GoodMoviesRunner:
         self.__logger.info('GoodMovies started')
 
         moviesThatShouldBeInFile = self.__readMoviesThatShouldBeInFile(commandLineArguments)
-        moviesAlreadyInFile = self.__readMoviesAlreadyInFile(commandLineArguments)
+        moviesAlreadyInFile = self.__readMoviesAlreadyInOutputFile(commandLineArguments)
         moviesToInsertIntoFile = self.__findMoviesToInsertIntoFile(moviesAlreadyInFile,moviesThatShouldBeInFile)
 
         if commandLineArguments.outputfile != '':
@@ -188,33 +188,55 @@ class GoodMoviesRunner:
 
         self.__logger.info('Fetched %i movies, that should be in file',len(moviesThatShouldBeInFile))
 
+        if commandLineArguments.ignorefile != '':
+            moviesToIgnore = self.__readMoviesInFile(commandLineArguments.ignorefile)
+            moviesThatShouldBeInFile = self.__findMoviesToInsertIntoFile(moviesToIgnore, moviesThatShouldBeInFile)
+            #moviesToIgnore = __readMoviesAlreadyInOutputFile
+
         return moviesThatShouldBeInFile
 
-    def __readMoviesAlreadyInFile(self,
-                                  commandLineArguments):
+    def __readMoviesAlreadyInOutputFile(self,
+                                        commandLineArguments):
         """Reads the movies already contained in the output file specified
            in the command line arguments"""
 
         self.__logger.info('Reading file %s',commandLineArguments.outputfile)
 
         if commandLineArguments.outputfile != '':
-            try:
-                fileToUpdate = io.open(
-                    commandLineArguments.outputfile,'r',encoding="utf8")
+            moviesAlreadyInFile = self.__readMoviesInFile(commandLineArguments.outputfile)
 
-                contentInFileToUpdate = fileToUpdate.read()
-                moviesAlreadyInFile = contentInFileToUpdate.rstrip().split("\n")
-                fileToUpdate.close()
-            except Exception as e:
-                self.__logger.warning('Could not read file %s, maybe file does not exist yet',commandLineArguments.outputfile)
-                moviesAlreadyInFile = []
-
-            self.__logger.info('File %s already contains %i movies',commandLineArguments.outputfile,len(moviesAlreadyInFile))
+            self.__logger.info('Output file "%s" already contains %i movies',
+                                commandLineArguments.outputfile,
+                                len(moviesAlreadyInFile))
         else:
             self.__logger.info('No outputfile specified - writing movies to STDOUT')
             moviesAlreadyInFile = []
 
         return moviesAlreadyInFile
+
+    def __readMoviesInFile(self, fileName):
+        """
+        Reads the movies contained in the given file and returns a list.
+        If the file is not readable an empty list is returned
+        """
+
+        try:
+            self.__logger.warning('Reading movies in file "%s"', fileName)
+
+            fileToRead = io.open(fileName, 'r', encoding="utf8")
+            fileContentAsString = fileToRead.read()
+            fileToRead.close()
+
+            moviesInFile = fileContentAsString.rstrip().split("\n")
+
+            self.__logger.warning('Read %i movies from file "%s"', len(moviesInFile), fileName)
+
+        except Exception as e:
+            self.__logger.warning('Could not read file %s, maybe file does not exist',
+                                   fileName)
+            moviesInFile = []
+
+        return moviesInFile
 
     def __parseCommandLineArguments(self):
         """parses the command line arguments and ends the script on error"""
@@ -263,6 +285,11 @@ class GoodMoviesRunner:
             '-lo','--logfile',
             help='specify the file the logging messages are appended to',
             default='/tmp/goodmovies.log')
+
+        parser.add_argument(
+            '-ig','--ignorefile',
+            help='optionally specify a file containing movies that should be ignored',
+            default='')
 
         parser.add_argument(
             '-cn','--count',

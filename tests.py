@@ -118,6 +118,35 @@ class TestProgram(unittest.TestCase):
     # the path the tests will create their data files in
     __testDataDirectory = 'testdata/'
 
+    def test_notAddsMoviesContainedInmovieFile(self):
+        """tests, that we can specify an ignore file for movie titles we
+           do not want to have in the output"""
+
+        self.__createFileWithMovies('testdata/ignoremovies.txt',
+                                    [u'The Shawshank Redemption',
+                                     u'12 Angry Men'])
+
+        consoleOutput = self.__runGoodMovies(["--list=imdb_top250",
+                                              "--count=10",
+                                              "--ignorefile=testdata/ignoremovies.txt",
+                                              "--language=en-US"])
+
+        # we read 10 movies, but ignored 2 of them, so only 8 should be left
+        self.assertEqual(len(consoleOutput),8)
+
+        # the ignored movies should not occur in the output...
+        self.assertEqual(consoleOutput.count("The Shawshank Redemption"),0)
+        self.assertEqual(consoleOutput.count("12 Angry Men"),0)
+
+        # ... while other movies should
+        self.assertEqual(consoleOutput.count("The Godfather"),1)
+
+    def __createFileWithMovies(self, fileName, movies):
+        """creates a new file containing the given movies"""
+        movieFile = io.open(fileName, 'a', encoding='utf8')
+        movieFile.writelines("\n".join(movies))
+        movieFile.close()
+
     def __clearTestDataDirectory(self):
         """clears the files in test data directory, thereby only leaving
            the .gitignore file"""
