@@ -141,6 +141,30 @@ class TestProgram(unittest.TestCase):
         # ... while other movies should
         self.assertEqual(consoleOutput.count("The Godfather"),1)
 
+    def test_notAddsMoviesFuzzilyContainedInMovieFile(self):
+        """tests, that we can specify the movies to ignore
+           in a non exact way by using option --ignorefuzzy"""
+
+        self.__createFileWithMovies('testdata/ignoremovies.txt',
+                                    [u'the shawshank - Redemption',
+                                     u'12   angry MEN,:?'])
+
+        consoleOutput = self.__runGoodMovies(["--list=imdb_top250",
+                                              "--count=10",
+                                              "--ignorefile=testdata/ignoremovies.txt",
+                                              "--ignorefuzzy",
+                                              "--language=en-US"])
+
+        # we read 10 movies, but ignored 2 of them, so only 8 should be left
+        self.assertEqual(len(consoleOutput),8)
+
+        # the ignored movies should not occur in the output...
+        self.assertEqual(consoleOutput.count("The Shawshank Redemption"),0)
+        self.assertEqual(consoleOutput.count("12 Angry Men"),0)
+
+        # ... while other movies should
+        self.assertEqual(consoleOutput.count("The Godfather"),1)
+
     def __createFileWithMovies(self, fileName, movies):
         """creates a new file containing the given movies"""
         movieFile = io.open(fileName, 'a', encoding='utf8')

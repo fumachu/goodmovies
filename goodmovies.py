@@ -5,6 +5,7 @@ import argparse
 import io
 import urllib2
 import logging
+import re
 from bs4 import BeautifulSoup, SoupStrainer
 
 class IMDBScraper:
@@ -105,10 +106,10 @@ class GoodMoviesRunner:
 
         moviesThatShouldBeInFile = self.__readMoviesThatShouldBeInFile(commandLineArguments)
         moviesAlreadyInFile = self.__readMoviesAlreadyInOutputFile(commandLineArguments)
-        moviesToInsertIntoFile = self.__findMoviesToInsertIntoFile(moviesAlreadyInFile,moviesThatShouldBeInFile)
+        moviesToInsertIntoFile = self.__removeMoviesContainedIn(moviesAlreadyInFile, moviesThatShouldBeInFile, self.__asExactString)
 
         if commandLineArguments.outputfile != '':
-            self.__insertMoviesIntoFile(commandLineArguments,moviesToInsertIntoFile)
+            self.__insertMoviesIntoFile(commandLineArguments, moviesToInsertIntoFile)
         else:
             self.__outputMoviesToSTDOUT(moviesToInsertIntoFile)
 
@@ -146,29 +147,49 @@ class GoodMoviesRunner:
                            len(moviesToInsertIntoFile),
                            commandLineArguments.outputfile)
 
-    def __findMoviesToInsertIntoFile(self,
-                                     moviesAlreadyInFile,
-                                     moviesThatShouldBeInFile):
+    def __removeMoviesContainedIn(self,
+                                  moviesToRemove,
+                                  moviesToRemoveFrom,
+                                  compareWithMethod):
         """finds the movies that are not already contained in the list
            and returns them as list"""
 
-        moviesToInsertIntoFile = []
+        resultingMovies = []
+        comparableMoviesToRemove = map(compareWithMethod, moviesToRemove)
 
-        for eachMovieThatShouldBeInFile in moviesThatShouldBeInFile:
-            if not eachMovieThatShouldBeInFile in moviesAlreadyInFile:
-                self.__logger.info('Movie "%s" is not in file and will be added',eachMovieThatShouldBeInFile)
-                moviesToInsertIntoFile.append(eachMovieThatShouldBeInFile)
+        for eachMovieToCheck in moviesToRemoveFrom:
+            if not compareWithMethod(eachMovieToCheck) in comparableMoviesToRemove:
+                self.__logger.info('Movie "%s" is not in file and will be added', eachMovieToCheck)
+                resultingMovies.append(eachMovieToCheck)
 
-        if len(moviesToInsertIntoFile) == 0:
+        if len(resultingMovies) == 0:
             self.__logger.info('No new movies fetched, file will remain unchanged')
 
-        return moviesToInsertIntoFile
+        return resultingMovies
+
+    def __asFuzzilyComparableString(self, inputString):
+        """returns a fuzzily comparable string by removing all spaces, signs
+           (e.g. all non numbers and non characters)
+           and converting everything to lower case"""
+        nonAlphanumericCharsRemoved = re.sub('[^a-zA-Z0-9]+', '', inputString)
+        return nonAlphanumericCharsRemoved.lower()
+
+    def __asExactString(self, inputString):
+        """returns exactly the string given as inputString"""
+        return inputString
 
     def __readMoviesThatShouldBeInFile(self,
                                        commandLineArguments):
         """fetches the movies from the internet site (e.g. imdb.com) according
-           to the given command line arguments"""
+           to the given command line arguments and removes the ignored movies"""
 
+        moviesFetchedFromInternet = self.__fetchMoviesFromInternetSite(commandLineArguments)
+        moviesThatShouldBeInFile = self.__removeIgnoredMovies(commandLineArguments, moviesFetchedFromInternet)
+
+        return moviesThatShouldBeInFile
+
+    def __fetchMoviesFromInternetSite(self, commandLineArguments):
+        """Fetches the movie list from the internet site"""
         self.__logger.info('Fetching movies from list %s',commandLineArguments.list)
 
         theIMDBScraper = IMDBScraper()
@@ -184,16 +205,29 @@ class GoodMoviesRunner:
             self.__logger.info('List "%s" is unknown, no movies fetched',commandLineArguments.list)
             moviesOnIMDBSite = []
 
-        moviesThatShouldBeInFile = moviesOnIMDBSite[:commandLineArguments.count]
+        moviesOnIMDBSite = moviesOnIMDBSite[:commandLineArguments.count]
 
-        self.__logger.info('Fetched %i movies, that should be in file',len(moviesThatShouldBeInFile))
+        self.__logger.info('Fetched %i movies from internet',len(moviesOnIMDBSite))
+
+        return moviesOnIMDBSite
+
+    def __removeIgnoredMovies(self, commandLineArguments, moviesToRemoveFrom):
+        """reads the movies to ignore, if any, and returns the remaining movies
+           as list"""
 
         if commandLineArguments.ignorefile != '':
             moviesToIgnore = self.__readMoviesInFile(commandLineArguments.ignorefile)
-            moviesThatShouldBeInFile = self.__findMoviesToInsertIntoFile(moviesToIgnore, moviesThatShouldBeInFile)
-            #moviesToIgnore = __readMoviesAlreadyInOutputFile
 
-        return moviesThatShouldBeInFile
+            if commandLineArguments.ignorefuzzy:
+                remainingMovies = self.__removeMoviesContainedIn(
+                  moviesToIgnore, moviesToRemoveFrom, self.__asFuzzilyComparableString)
+            else:
+                remainingMovies = self.__removeMoviesContainedIn(
+                  moviesToIgnore, moviesToRemoveFrom, self.__asExactString)
+        else:
+            remainingMovies = moviesToRemoveFrom
+
+        return remainingMovies
 
     def __readMoviesAlreadyInOutputFile(self,
                                         commandLineArguments):
@@ -290,6 +324,11 @@ class GoodMoviesRunner:
             '-ig','--ignorefile',
             help='optionally specify a file containing movies that should be ignored',
             default='')
+
+        parser.add_argument(
+            '--ignorefuzzy',
+            help='optionally activate a fuzzy matching for the movies to ignore',
+            action='store_true')
 
         parser.add_argument(
             '-cn','--count',
