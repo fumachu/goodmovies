@@ -46,7 +46,7 @@ class IMDBScraper:
         currentPage = 1
 
         while True:
-            IMDBGenreURL = "http://www.imdb.com/search/title?genres=" + imdbGenreKey + "&sort=user_rating,desc&title_type=feature&num_votes=25000,&view=simple&page=" + str(currentPage)
+            IMDBGenreURL = "http://www.imdb.com/search/title?genres=" + imdbGenreKey + "&page=" + str(currentPage) + "&sort=user_rating,desc&title_type=feature&num_votes=25000,&view=simple"
 
             IMDBResponseAsString = self.__fetchIMDBSiteContent(IMDBGenreURL)
 
@@ -72,12 +72,14 @@ class IMDBScraper:
     def __fetchIMDBSiteContent(self, url):
         """reads the content of an IMDB site and returns the HTML as string"""
 
-        IMDBRequest = urllib2.Request(url, "",
-            # upon sending a request from IMDB with header 'Accept-Language'
-            # IMDB will return the site and the move titles in this language
-            { "Accept-Language" : self.__language })
+        IMDBRequest = urllib2.Request(url)
 
-        IMDBResponse = urllib2.urlopen(IMDBRequest)
+        # upon sending a request from IMDB with header 'Accept-Language'
+        # IMDB will return the site and the move titles in this language
+	IMDBRequest.add_header('Accept-Language', self.__language)
+	IMDBRequest.add_header('User-Agent', 'Mozilla/5.0')
+
+        IMDBResponse = urllib2.build_opener().open(IMDBRequest)
         IMDBResponseAsString = IMDBResponse.read()
 
         return IMDBResponseAsString
@@ -127,7 +129,7 @@ class GoodMoviesRunner:
         """writes the given movies to STDOUT"""
 
         for eachMovieToPrint in moviesToPrint:
-            print(eachMovieToPrint)
+            print(eachMovieToPrint.encode('utf8'))
 
     def __insertMoviesIntoFile(self,
                                commandLineArguments,

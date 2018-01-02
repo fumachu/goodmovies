@@ -43,6 +43,7 @@ class TestProgram(unittest.TestCase):
                               "--language=de-DE",
                               "--count=150",
                               "--outputfile=testdata/top100actiongerman.txt"])
+
         writtenLines = self.__readTestFile("testdata/top100actiongerman.txt")
 
         self.assertEqual(len(writtenLines),150)
@@ -73,6 +74,19 @@ class TestProgram(unittest.TestCase):
         self.assertEqual(len(writtenLines),10)
         self.assertEqual(writtenLines.count("Die Verurteilten"),1)
         self.assertEqual(writtenLines.count("Gladiator"),0)
+
+    def test_readsMultiPageListsFromIMDB(self):
+        """tests, whether switching pages on long lists from IMDB works"""
+
+        self.__runGoodMovies(["--list=imdb_sci_fi",
+                              "--count=100",
+                              "--language=de-DE",
+                              "--outputfile=testdata/top100german.txt"])
+
+        writtenLines = self.__readTestFile("testdata/top100german.txt")
+
+        self.assertEqual(len(writtenLines),100)
+        self.assertEqual(writtenLines.count("Der Blade Runner"),1)
 
     def test_doesNotAddMovieTwice(self):
         """tests, that a movie is not added twice to the output file"""
