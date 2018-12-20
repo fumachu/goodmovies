@@ -43,10 +43,10 @@ class IMDBScraper:
         """reads the imdb top rated movies by genre and returns a list"""
         movies = []
 
-        currentPage = 1
+        currentStart = 1
 
         while True:
-            IMDBGenreURL = "http://www.imdb.com/search/title?genres=" + imdbGenreKey + "&page=" + str(currentPage) + "&sort=user_rating,desc&title_type=feature&num_votes=25000,&view=simple"
+            IMDBGenreURL = "http://www.imdb.com/search/title?genres=" + imdbGenreKey + "&start=" + str(currentStart) + "&sort=user_rating,desc&title_type=feature&num_votes=25000,&view=simple"
 
             IMDBResponseAsString = self.__fetchIMDBSiteContent(IMDBGenreURL)
 
@@ -61,11 +61,10 @@ class IMDBScraper:
             for eachMovieLine in movieTitleLines:
                 movieLink = eachMovieLine.find('a')
                 movies.append(movieLink.text)
+                currentStart += 1
 
             if len(movies) >= count:
                 break
-
-            currentPage += 1
 
         return movies
 
